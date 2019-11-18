@@ -1,11 +1,6 @@
 ## directory_search.py
 ## Searches files in directory and subdirectories for a specified string.
 
-##TODO:
-# create tempdir and convert to .zip to avoid damaging .ppt
-# if pdf requires decryption, skip
-# improve pptx parsing
-
 ## Setup:
 # 1) Run file.reg to enable drag-and-drop conversion
 # 2) Install necessary Python 3.8 dependencies: (i.e. zipfile, PyPDF2, docx, xlrd)
@@ -13,15 +8,14 @@
 # 4) Specify a searchable string (not case-sensitive)
 # 5) View list of files containing the specified string w/ instances
 
-from zipfile import ZipFile
-import zipfile
+##TODO:
+# if pdf requires decryption, skip or ask for password
+
+from docx import Document
+from pptx import Presentation
 import sys
-import tempfile
-import shutil
 import os
 import re
-import fnmatch
-from docx import Document
 import PyPDF2
 import csv
 import xlrd
@@ -30,38 +24,21 @@ import xml.etree.ElementTree as ET
 # 3rd Level Helper Function
 # for searching ppt/pptx
 def search_ppt(pptfname):
-    pre, ext = os.path.splitext(pptfname)
-    newDir = pre + ".zip"
-    os.rename(pptfname, newDir)
-    tempdir = tempfile.mkdtemp()
-    try:
-        array = []
-        # creates directory string
-        tempname = os.path.join(tempdir, 'new.zip')
-        # reads original zip
-        with zipfile.ZipFile(newDir, 'r') as zipread:
-            #writes to temp zip
-            with zipfile.ZipFile(tempname, 'w') as zipwrite:
-                #iterates over each file in original zip
-                for item in zipread.infolist():
-                    # contents to be checked
-                    filename = item.filename
-                    # slide.xml contains text
-                    if fnmatch.fnmatch(filename, '*slide*.xml'):
-                        data = zipread.read(item.filename)
-                        decoded = data.decode('utf-8')
-                        textblocks = re.findall("<a:t>(.*?)</a:t>", decoded)
-                        ##
-                        ##TODO: figure out why it's including weird text
-                        ##
-                        array.extend(textblocks)
-                text = (" ").join(array)
-                matches = re.findall(specifiedString, text, flags=re.IGNORECASE)
-                numMatches = len(matches)
-                return numMatches
-    finally:
-        os.rename(newDir, pptfname)
-        shutil.rmtree(tempdir)
+      array = []
+      prs = Presentation(pptfname)
+      for slide in prs.slides:
+            for shape in slide.shapes:
+                  if not shape.has_text_frame:
+                      continue
+                  for paragraph in shape.text_frame.paragraphs:
+                      #for run in paragraph.runs:
+                        paratext = paragraph.text
+                        words = paratext.split()
+                        array.extend(words)
+      text = (" ").join(array)
+      matches = re.findall(specifiedString, text, flags=re.IGNORECASE)
+      numMatches = len(matches)
+      return numMatches
 ## 2
 # 3rd Level Helper Function
 # for searching doc/docx
@@ -147,7 +124,7 @@ def fileSwitch(fileDir):
 ##MAIN FUNCTION##
 fileHash = {}
 specifiedDirectory = sys.argv[1]
-specifiedString = input("What string would you like to search for?")
+specifiedString = input("What string would you like to search for?\n")
 for subdir, dirs, files in os.walk(specifiedDirectory):
     for file in files:
         file = os.path.join(subdir, file)
