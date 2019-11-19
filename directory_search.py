@@ -7,10 +7,11 @@
 # 3) Drag and drop any parent directory or file on top of directory_search.py
 # 4) Specify a searchable string (not case-sensitive)
 # 5) View list of files containing the specified string w/ instances
-
 ##TODO:
-# if pdf requires decryption, skip or ask for password
-
+# if pdf requires decryption, skip
+# sort results by instances found
+# handling of protected mode files
+# handling of unsupported file types
 from docx import Document
 from pptx import Presentation
 import sys
@@ -20,6 +21,7 @@ import PyPDF2
 import csv
 import xlrd
 import xml.etree.ElementTree as ET
+import ctypes
 ## 1
 # 3rd Level Helper Function
 # for searching ppt/pptx
@@ -95,7 +97,8 @@ def search_xlsx(xlsxfname):
         for row_idx in range(0, xl_sheet.nrows):
             for col_idx in range(0, num_cols): 
                 cell_obj = xl_sheet.cell(row_idx, col_idx)
-                text += cell_obj.value
+                converted2string = str(cell_obj.value)
+                text += converted2string
     matches = re.findall(specifiedString, text, flags=re.IGNORECASE)
     numMatches = len(matches)
     return numMatches
@@ -123,16 +126,20 @@ def fileSwitch(fileDir):
 ## 1
 ##MAIN FUNCTION##
 fileHash = {}
-specifiedDirectory = sys.argv[1]
-specifiedString = input("What string would you like to search for?\n")
-for subdir, dirs, files in os.walk(specifiedDirectory):
-    for file in files:
-        file = os.path.join(subdir, file)
-        numMatches = fileSwitch(file)
-        relPatch = os.path.relpath(file, subdir)
-        fileHash[relPatch] = numMatches
-for key, value in fileHash.items():
-    print(key)
-    print("Contains " + str(value) + " instance(s) of specified string.")
-    print()
-input("Press any key to exit...")
+if len(sys.argv) > 1:
+      specifiedDirectory = sys.argv[1]
+      specifiedString = input("What string would you like to search for?\n")
+      for subdir, dirs, files in os.walk(specifiedDirectory):
+          for file in files:
+              file = os.path.join(subdir, file)
+              numMatches = fileSwitch(file)
+              relPatch = os.path.relpath(file, subdir)
+              fileHash[relPatch] = numMatches
+      for key, value in fileHash.items():
+          print(key + " contains:")
+          print("\t" + str(value) + " instance(s)")
+          print()
+      input("Press any key to exit...")
+else:
+    ctypes.windll.user32.MessageBoxW(None, "Drag a folder or file onto directory_search.py \nto search for a specified string.", "Ok", 0)          
+    exit
